@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h2>Dashboard</h2>
+<p>Real-time monitoring of yellow box zone violations.</p>
+
+<div class="dashboard-container">
+    <div class="camera-section">
+        <h3>Live CCTV Feed</h3>
+        <div class="video-container">
+            <img src="{{ url_for('dashboard.video_feed') }}" alt="Live CCTV Feed" class="video-feed">
+        </div>
+    </div>
+
+    <div class="violations-section">
+        <h3>Recent Violations</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Vehicle ID</th>
+                    <th>Timestamp</th>
+                    <th>Stop Time</th>
+                    <th>Image</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for violation in violations %}
+                <tr>
+                    <td>{{ violation[0] }}</td>
+                    <td>{{ violation[1] }}</td>
+                    <td>{{ violation[2] }}</td>
+                    <td>{{ violation[3] }}</td>
+                    <td><img src="{{ url_for('static', filename='images/screenshots/' + violation[4]) }}" alt="Violation" width="100"></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+# TODO List for Multicab Yellow Box Zone Monitoring System
+
+- [x] Create requirements.txt with Python dependencies
+- [x] Create app.py (main Flask app)
+- [x] Create config/config.py (system settings)
+- [x] Create ai_model/detect.py (YOLOv5 detection code)
+- [x] Create ai_model/tracker.py (object tracking)
+- [x] Create ai_model/stop_timer.py (stop-time computation)
+- [x] Create camera/camera.py (camera/video handler)
+- [x] Create database/database.py (SQLite connection and operations)
+- [x] Create routes/dashboard_routes.py (Flask routes for pages)
+- [x] Create routes/api_routes.py (API endpoints)
+- [x] Create static/css/style.css (dashboard design)
+- [x] Create static/js/script.js (optional JS for auto refresh)
+- [x] Create templates/base.html (common layout)
+- [x] Create templates/dashboard.html (main dashboard)
+- [x] Create templates/logs.html (violation logs page)
+- [x] Create utils/zone.py (yellow box zone coordinates)
+- [x] Create utils/helpers.py (helper functions)
+- [x] Create tests/test_detection.py (basic testing)
+- [x] Create README.md (project description)
+- [ ] Install Python dependencies (requires Python installation)
+- [ ] Run Flask app and test functionality (requires Python installation)

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Violation Logs{% endblock %}
+
+{% block content %}
+<h2>Violation Logs</h2>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Vehicle ID</th>
+            <th>Timestamp</th>
+            <th>Stop Time</th>
+            <th>Image</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for violation in violations %}
+        <tr>
+            <td>{{ violation[0] }}</td>
+            <td>{{ violation[1] }}</td>
+            <td>{{ violation[2] }}</td>
+            <td>{{ violation[3] }}</td>
+            <td><img src="{{ url_for('static', filename='images/screenshots/' + violation[4]) }}" alt="Violation" width="100"></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

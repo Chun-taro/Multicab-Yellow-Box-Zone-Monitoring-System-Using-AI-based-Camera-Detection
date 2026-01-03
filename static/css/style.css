@@ -1,0 +1,221 @@
+/* General Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    min-height: 100vh;
+}
+
+header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+    padding: 1rem 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+header h1 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+nav {
+    margin-top: 0.5rem;
+}
+
+nav a {
+    color: #3498db;
+    text-decoration: none;
+    margin-right: 1.5rem;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+nav a:hover {
+    color: #2980b9;
+}
+
+main {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 2rem;
+}
+
+/* Dashboard Styles */
+h2 {
+    color: white;
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 2.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+h3 {
+    color: white;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+}
+
+/* Table Styles */
+table {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+th, td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+th {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+tr:nth-child(even) {
+    background: rgba(52, 152, 219, 0.05);
+}
+
+tr:hover {
+    background: rgba(52, 152, 219, 0.1);
+    transition: background 0.3s ease;
+}
+
+td img {
+    max-width: 100px;
+    height: auto;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    main {
+        padding: 0 1rem;
+    }
+
+    table {
+        font-size: 0.9rem;
+    }
+
+    th, td {
+        padding: 0.5rem;
+    }
+
+    td img {
+        max-width: 60px;
+    }
+
+    h2 {
+        font-size: 2rem;
+    }
+}
+
+/* Loading Animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+table {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Dashboard Container */
+.dashboard-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.camera-section, .violations-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.video-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    overflow: hidden;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.video-feed {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive Design for Dashboard */
+@media (max-width: 1024px) {
+    .dashboard-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .video-container {
+        height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .camera-section, .violations-section {
+        padding: 1rem;
+    }
+
+    .video-container {
+        height: 250px;
+    }
+
+    table {
+        font-size: 0.8rem;
+    }
+
+    th, td {
+        padding: 0.5rem 0.25rem;
+    }
+}
