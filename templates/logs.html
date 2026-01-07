@@ -1,29 +1,75 @@
-{% extends "base.html" %}
-
-{% block title %}Violation Logs{% endblock %}
+{% extends "layout.html" %}
 
 {% block content %}
-<h2>Violation Logs</h2>
-<table>
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Vehicle ID</th>
-            <th>Timestamp</th>
-            <th>Stop Time</th>
-            <th>Image</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for violation in violations %}
-        <tr>
-            <td>{{ violation[0] }}</td>
-            <td>{{ violation[1] }}</td>
-            <td>{{ violation[2] }}</td>
-            <td>{{ violation[3] }}</td>
-            <td><img src="{{ url_for('static', filename='images/screenshots/' + violation[4]) }}" alt="Violation" width="100"></td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="header">
+    <h1 class="page-title">Violation History</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if violations %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Timestamp</th>
+                        <th>Violation Type</th>
+                        <th>Plate Number</th>
+                        <th>Evidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in violations %}
+                    <tr>
+                        <td>#{{ v.id }}</td>
+                        <td>{{ v.timestamp }}</td>
+                        <td><span class="violation-tag">Yellow Box Entry</span></td>
+                        <td>{{ v.plate_number if v.plate_number else 'Unreadable' }}</td>
+                        <td>
+                            {% if v.image_path %}
+                            <button class="btn-view" onclick="openModal('{{ v.image_path }}')">View Image</button>
+                            {% else %}
+                            <span style="color: var(--text-muted);">No Image</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p style="color: var(--text-muted); text-align: center;">No violations recorded in the database.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div id="imageModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h2 style="margin-bottom: 1rem;">Violation Evidence</h2>
+        <img id="modalImage" class="modal-image" src="" alt="Violation Evidence">
+    </div>
+</div>
+
+<script>
+    function openModal(imagePath) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        modalImg.src = '/static/' + imagePath;
+        modal.style.display = "flex";
+    }
+
+    function closeModal() {
+        document.getElementById('imageModal').style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('imageModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+</script>
 {% endblock %}

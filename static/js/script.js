@@ -1,9 +1,9 @@
 // Auto refresh dashboard and logs every 10 seconds
-setInterval(function() {
-    if (window.location.pathname === '/' || window.location.pathname === '/logs') {
-        location.reload();
-    }
-}, 10000);
+// setInterval(function() {
+//     if (window.location.pathname === '/' || window.location.pathname === '/logs') {
+//         location.reload();
+//     }
+// }, 10000);
 
 // remove or neutralize camera change handler
 const cameraSelect = document.getElementById('camera-select');

@@ -1,0 +1,25 @@
+Timestamp,Vehicle ID,Type,Plate Number,Image Path
+2026-01-07 02:21:41,22,car,VICLATION,violations/violation_20260107_022141_car_22.jpg
+2026-01-07 02:21:41,150,motorcycle,VICLATION,violations/violation_20260107_022141_motorcycle_150.jpg
+2026-01-07 02:24:16,22,car,VICLATION,violations/violation_20260107_022416_car_22.jpg
+2026-01-07 02:24:17,150,motorcycle,VICLATION,violations/violation_20260107_022416_motorcycle_150.jpg
+2026-01-07 02:25:08,22,car,VICLATION,violations/violation_20260107_022508_car_22.jpg
+2026-01-07 02:25:08,150,motorcycle,VICLATION,violations/violation_20260107_022508_motorcycle_150.jpg
+2026-01-07 02:28:04,car,VICLATION,violations/violation_20260107_022804_car_22.jpg
+2026-01-07 02:28:04,motorcycle,VICLATION,violations/violation_20260107_022804_motorcycle_150.jpg
+2026-01-07 02:29:18,car,VICLATION,violations/violation_20260107_022918_car_22.jpg
+2026-01-07 02:29:18,motorcycle,VICLATION,violations/violation_20260107_022918_motorcycle_150.jpg
+2026-01-07 02:30:49,car,VICLATION,violations/violation_20260107_023049_car_22.jpg
+2026-01-07 02:30:49,motorcycle,VICLATION,violations/violation_20260107_023049_motorcycle_150.jpg
+2026-01-07 02:31:55,car,VICLATION,violations/violation_20260107_023154_car_22.jpg
+2026-01-07 02:31:55,motorcycle,VICLATION,violations/violation_20260107_023155_motorcycle_150.jpg
+2026-01-07 02:33:45,car,VICLATION,violations/violation_20260107_023344_car_22.jpg
+2026-01-07 02:33:45,motorcycle,VICLATION,violations/violation_20260107_023345_motorcycle_150.jpg
+2026-01-07 02:37:11,car,Unreadable,violations/violation_20260107_023711_car_22.jpg
+2026-01-07 02:37:11,motorcycle,Unreadable,violations/violation_20260107_023711_motorcycle_150.jpg
+2026-01-07 02:38:42,car,Unreadable,violations/violation_20260107_023842_car_22.jpg
+2026-01-07 02:38:42,motorcycle,Unreadable,violations/violation_20260107_023842_motorcycle_150.jpg
+2026-01-07 02:41:30,car,Unreadable,violations/violation_20260107_024130_car_22.jpg
+2026-01-07 02:41:30,motorcycle,Unreadable,violations/violation_20260107_024130_motorcycle_150.jpg
+2026-01-07 02:43:45,car,Unreadable,violations/violation_20260107_024344_car_22.jpg
+2026-01-07 02:43:45,motorcycle,Unreadable,violations/violation_20260107_024345_motorcycle_150.jpg

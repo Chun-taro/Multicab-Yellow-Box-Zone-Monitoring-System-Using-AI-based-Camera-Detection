@@ -4,4 +4,14 @@ torch==2.9.0
 torchvision==0.24.0
 numpy==1.24.3
 Pillow==10.0.0
-sqlite3
+matplotlib
+pandas
+requests
+seaborn
+psutil
+ipython
+tqdm
+PyYAML
+thop
+gitpython
+scipy

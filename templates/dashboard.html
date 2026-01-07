@@ -1,43 +1,132 @@
-{% extends "base.html" %}
-
-{% block title %}Dashboard{% endblock %}
+{% extends "layout.html" %}
 
 {% block content %}
-<h2>Dashboard</h2>
-<p>Real-time monitoring of yellow box zone violations.</p>
+<div class="header">
+    <h1 class="page-title">Live Monitoring</h1>
+    <div class="status-badge status-live">
+        <div class="status-dot"></div>
+        <span>System Active</span>
+    </div>
+</div>
 
-<div class="dashboard-container">
-    <div class="camera-section">
-        <h3>Live CCTV Feed</h3>
-        <div class="video-container">
-            <img src="{{ url_for('dashboard.video_feed') }}" alt="Live CCTV Feed" class="video-feed">
+<div class="dashboard-grid">
+    <!-- Video Feed Section -->
+    <div class="card">
+        <div class="card-header">
+            <span><i class="fas fa-camera"></i> Camera Feed 01</span>
+        </div>
+        <div class="card-body" style="padding: 0; background: #000;">
+            <div class="video-container">
+                <img src="{{ url_for('dashboard.video_feed') }}" alt="Live Video Feed" class="video-feed">
+            </div>
         </div>
     </div>
 
-    <div class="violations-section">
-        <h3>Recent Violations</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Vehicle ID</th>
-                    <th>Timestamp</th>
-                    <th>Stop Time</th>
-                    <th>Image</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for violation in violations %}
-                <tr>
-                    <td>{{ violation[0] }}</td>
-                    <td>{{ violation[1] }}</td>
-                    <td>{{ violation[2] }}</td>
-                    <td>{{ violation[3] }}</td>
-                    <td><img src="{{ url_for('static', filename='images/screenshots/' + violation[4]) }}" alt="Violation" width="100"></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Recent Violations Section -->
+    <div class="card">
+        <div class="card-header">
+            <span><i class="fas fa-exclamation-triangle"></i> Recent Alerts</span>
+        </div>
+        <div class="card-body" id="recent-alerts-container">
+            {% if violations %}
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Plate Number</th>
+                            <th>Evidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in violations[:10] %}
+                        <tr>
+                            <td>{{ v.timestamp }}</td>
+                            <td><span class="violation-tag">Yellow Box</span></td>
+                            <td>{{ v.plate_number if v.plate_number else 'Unreadable' }}</td>
+                            <td><button class="btn-view" onclick="openModal('{{ v.image_path }}')">View</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <p style="color: var(--text-muted); text-align: center; margin-top: 2rem;">No recent violations detected.</p>
+            {% endif %}
+        </div>
     </div>
 </div>
+
+<!-- Image Modal -->
+<div id="imageModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h2 style="margin-bottom: 1rem;">Violation Evidence</h2>
+        <img id="modalImage" class="modal-image" src="" alt="Violation Evidence">
+    </div>
+</div>
+
+<script>
+    function fetchRecentAlerts() {
+        fetch('/api/recent_violations')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('recent-alerts-container');
+                if (data.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 2rem;">No recent violations detected.</p>';
+                    return;
+                }
+
+                let html = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Plate Number</th>
+                                <th>Evidence</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                
+                data.forEach(v => {
+                    html += `
+                        <tr>
+                            <td>${v.timestamp}</td>
+                            <td><span class="violation-tag">Yellow Box</span></td>
+                            <td>${v.plate_number || 'Unreadable'}</td>
+                            <td><button class="btn-view" onclick="openModal('${v.image_path}')">View</button></td>
+                        </tr>`;
+                });
+
+                html += `</tbody></table></div>`;
+                container.innerHTML = html;
+            })
+            .catch(err => console.error('Error fetching alerts:', err));
+    }
+
+    function openModal(imagePath) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        modalImg.src = '/static/' + imagePath;
+        modal.style.display = "flex";
+    }
+
+    function closeModal() {
+        document.getElementById('imageModal').style.display = "none";
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('imageModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    // Poll every 2 seconds
+    setInterval(fetchRecentAlerts, 2000);
+</script>
 {% endblock %}

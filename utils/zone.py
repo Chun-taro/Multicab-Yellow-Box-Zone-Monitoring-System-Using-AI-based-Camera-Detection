@@ -20,7 +20,9 @@ def is_point_in_polygon(point, polygon):
         p1x, p1y = p2x, p2y
     return inside
 
-def is_vehicle_in_zone(bbox, zone=YELLOW_BOX_ZONE):
+def is_vehicle_in_zone(bbox, zone=None):
+    if zone is None:
+        zone = config.YELLOW_BOX_ZONE
     center_x = (bbox[0] + bbox[2]) / 2
     center_y = (bbox[1] + bbox[3]) / 2
     return is_point_in_polygon((center_x, center_y), zone)

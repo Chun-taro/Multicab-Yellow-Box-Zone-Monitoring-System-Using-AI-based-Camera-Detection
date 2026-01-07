@@ -2,9 +2,10 @@
 
 class Config:
     # Camera settings
-    camera_source = 0  # locked camera index (always 0)
-    FRAME_WIDTH = 640
-    FRAME_HEIGHT = 480
+    camera_source = 'camera/test_video2.mp4'
+  
+    FRAME_WIDTH = 1440
+    FRAME_HEIGHT = 900
     FPS = 30
 
     # Detection settings
@@ -13,10 +14,10 @@ class Config:
 
     # Zone settings (example coordinates for yellow box zone)
     YELLOW_BOX_ZONE = [
-        (100, 200),  # top-left
-        (500, 200),  # top-right
-        (500, 400),  # bottom-right
-        (100, 400)   # bottom-left
+        (645, 360),
+    (822, 369),
+    (885, 697),
+    (496, 675),
     ]
 
     # Time limits
@@ -26,7 +27,7 @@ class Config:
     DATABASE_PATH = 'database/violations.db'
 
     # Flask settings
-    DEBUG = True
+    DEBUG = False
     HOST = '127.0.0.1'
     PORT = 5000
 
