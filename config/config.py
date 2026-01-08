@@ -2,7 +2,7 @@
 
 class Config:
     # Camera settings
-    camera_source = 'camera/test_video2.mp4'
+    camera_source = 'camera/test_video3.mp4'
   
     FRAME_WIDTH = 1440
     FRAME_HEIGHT = 900

@@ -1,69 +1,89 @@
 import cv2
-import sys
-import os
+import numpy as np
 
-# Add project root to path to allow importing config
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Global variables
+points = []
+img = None
 
-from config.config import config
+def click_event(event, x, y, flags, param):
+    global points, img
+    if event == cv2.EVENT_LBUTTONDOWN:
+        # Add point
+        points.append([x, y])
+        
+        # Visual feedback: Draw a red dot
+        cv2.circle(img, (x, y), 4, (0, 0, 255), -1)
+        
+        # Draw lines between points
+        if len(points) > 1:
+            cv2.line(img, tuple(points[-2]), tuple(points[-1]), (255, 0, 0), 2)
+        
+        # If 4 points are clicked, close the loop and print the code
+        if len(points) == 4:
+            cv2.line(img, tuple(points[-1]), tuple(points[0]), (255, 0, 0), 2)
+            
+            # Fill polygon to show the selected zone clearly
+            pts = np.array(points, np.int32)
+            overlay = img.copy()
+            cv2.fillPoly(overlay, [pts], (0, 255, 255))
+            cv2.addWeighted(overlay, 0.3, img, 0.7, 0, img)
+            
+            print("\n" + "="*50)
+            print("   COPY THE CODE BELOW INTO routes/dashboard_routes.py")
+            print("="*50)
+            print("    yellow_zone = np.array([")
+            for p in points:
+                print(f"        [{p[0]}, {p[1]}],")
+            print("    ], np.int32).reshape((-1, 1, 2))")
+            print("="*50 + "\n")
+            
+            print("Done! Press 'q' to quit.")
 
-def select_coordinates():
-    # Open video source
-    cap = cv2.VideoCapture(config.camera_source)
+        cv2.imshow('Set Coordinates', img)
+
+def main():
+    global img, points
+    
+    # Try opening camera (Source 1 first, then 0)
+    cap = cv2.VideoCapture(1)
     if not cap.isOpened():
-        print(f"Error: Could not open video source {config.camera_source}")
-        return
+        print("Camera 1 failed, trying Camera 0...")
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("Error: Could not open any camera.")
+            return
 
-    ret, frame = cap.read()
+    print("Camera opened.")
+    print("1. Position your camera.")
+    print("2. Press SPACEBAR to freeze the frame and start drawing.")
+    print("3. Press 'q' to quit without saving.")
+    
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+            
+        cv2.imshow('Set Coordinates', frame)
+        
+        key = cv2.waitKey(1) & 0xFF
+        if key == 32: # Space bar to freeze
+            img = frame.copy()
+            break
+        elif key == ord('q'):
+            cap.release()
+            cv2.destroyAllWindows()
+            return
+
+    print(">> CLICK THE 4 CORNERS OF THE YELLOW BOX NOW <<")
+    cv2.setMouseCallback('Set Coordinates', click_event)
+    
+    while True:
+        cv2.imshow('Set Coordinates', img)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+            
     cap.release()
-
-    if not ret:
-        print("Error: Could not read frame from video.")
-        return
-
-    # Resize frame to match the processing dimensions defined in config
-    # This is crucial because coordinates must match the frame size used by the AI
-    frame = cv2.resize(frame, (config.FRAME_WIDTH, config.FRAME_HEIGHT))
-
-    print(f"Frame resized to {config.FRAME_WIDTH}x{config.FRAME_HEIGHT} for coordinate selection.")
-    print("Click on the 4 corners of the zone in order (e.g., Top-Left -> Top-Right -> Bottom-Right -> Bottom-Left).")
-    print("Press any key to exit when done.")
-
-    coordinates = []
-
-    def click_event(event, x, y, flags, param):
-        if event == cv2.EVENT_LBUTTONDOWN:
-            coordinates.append((x, y))
-            print(f"Clicked: ({x}, {y})")
-            
-            # Draw a circle and text
-            cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
-            cv2.putText(frame, str(len(coordinates)), (x+10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-            
-            # Draw lines to visualize the polygon
-            if len(coordinates) > 1:
-                cv2.line(frame, coordinates[-2], coordinates[-1], (255, 0, 0), 2)
-            if len(coordinates) == 4:
-                # Close the loop
-                cv2.line(frame, coordinates[-1], coordinates[0], (255, 0, 0), 2)
-                
-            cv2.imshow("Select Zone Coordinates", frame)
-
-    cv2.imshow("Select Zone Coordinates", frame)
-    cv2.setMouseCallback("Select Zone Coordinates", click_event)
-
-    cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    if len(coordinates) == 4:
-        print("\n--- COPY THIS TO config/config.py ---")
-        print("YELLOW_BOX_ZONE = [")
-        for x, y in coordinates:
-            print(f"    ({x}, {y}),")
-        print("]")
-        print("-------------------------------------")
-    else:
-        print(f"\nWarning: You selected {len(coordinates)} points. 4 points are expected.")
-
 if __name__ == "__main__":
-    select_coordinates()
+    main()

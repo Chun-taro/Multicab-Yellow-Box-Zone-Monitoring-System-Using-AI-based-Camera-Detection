@@ -214,7 +214,8 @@ def generate_frames():
     
     # Dictionaries to store state per vehicle ID
     vehicle_timers = {}   # {id: start_time}
-    previous_positions = {} # {id: (cx, cy)}
+    movement_start_pos = {} # {id: (time, cx, cy)}
+    is_stopped_map = {} # {id: bool}
     violated_ids = set()  # Set of IDs that have already triggered a violation
     vehicle_plates = {}   # {id: plate_text}
     ocr_processed_ids = set() # IDs that we have already attempted to read
@@ -279,14 +280,24 @@ def generate_frames():
                 # Check if inside Yellow Zone
                 is_in_zone = cv2.pointPolygonTest(yellow_zone, (cx, cy), False) >= 0
                 
-                # Check if Stopped (compare with previous position)
-                is_stopped = False
-                if obj_id in previous_positions:
-                    prev_cx, prev_cy = previous_positions[obj_id]
-                    dist = math.hypot(cx - prev_cx, cy - prev_cy)
-                    if dist < 3: # Threshold: moved less than 3 pixels
-                        is_stopped = True
-                previous_positions[obj_id] = (cx, cy)
+                # Check if Stopped (compare with position 1 second ago)
+                current_time = time.time()
+                if obj_id not in movement_start_pos:
+                    movement_start_pos[obj_id] = (current_time, cx, cy)
+                    is_stopped_map[obj_id] = False # Assume moving initially
+                
+                start_t, start_x, start_y = movement_start_pos[obj_id]
+                if current_time - start_t >= 1.0:
+                    dist = math.hypot(cx - start_x, cy - start_y)
+                    # If moved less than 20 pixels in 1 second, consider stopped
+                    if dist < 20: 
+                        is_stopped_map[obj_id] = True
+                    else:
+                        is_stopped_map[obj_id] = False
+                    # Reset reference
+                    movement_start_pos[obj_id] = (current_time, cx, cy)
+                
+                is_stopped = is_stopped_map.get(obj_id, False)
 
                 color = (255, 0, 0) # Default Blue (Safe)
                 
@@ -417,9 +428,13 @@ def generate_frames():
                 if obj_id not in current_frame_ids:
                     del vehicle_timers[obj_id]
             
-            for obj_id in list(previous_positions.keys()):
+            for obj_id in list(movement_start_pos.keys()):
                 if obj_id not in current_frame_ids:
-                    del previous_positions[obj_id]
+                    del movement_start_pos[obj_id]
+            
+            for obj_id in list(is_stopped_map.keys()):
+                if obj_id not in current_frame_ids:
+                    del is_stopped_map[obj_id]
             
             for obj_id in list(vehicle_plates.keys()):
                 if obj_id not in current_frame_ids:

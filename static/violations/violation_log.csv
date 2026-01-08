@@ -23,3 +23,23 @@ Timestamp,Vehicle ID,Type,Plate Number,Image Path
 2026-01-07 02:41:30,motorcycle,Unreadable,violations/violation_20260107_024130_motorcycle_150.jpg
 2026-01-07 02:43:45,car,Unreadable,violations/violation_20260107_024344_car_22.jpg
 2026-01-07 02:43:45,motorcycle,Unreadable,violations/violation_20260107_024345_motorcycle_150.jpg
+2026-01-09 01:30:03,car,Unreadable,violations/violation_20260109_013003_car_22.jpg
+2026-01-09 01:30:03,motorcycle,Unreadable,violations/violation_20260109_013003_motorcycle_150.jpg
+2026-01-09 01:46:23,car,Unreadable,violations/violation_20260109_014622_car_9104.jpg
+2026-01-09 01:46:23,motorcycle,Unreadable,violations/violation_20260109_014623_motorcycle_9232.jpg
+2026-01-09 01:51:02,car,Unreadable,violations/violation_20260109_015102_car_22.jpg
+2026-01-09 01:51:02,motorcycle,Unreadable,violations/violation_20260109_015102_motorcycle_150.jpg
+2026-01-09 01:53:59,car,Unreadable,violations/violation_20260109_015359_car_22.jpg
+2026-01-09 01:53:59,motorcycle,Unreadable,violations/violation_20260109_015359_motorcycle_150.jpg
+2026-01-09 02:10:07,car,Unreadable,violations/violation_20260109_021006_car_9104.jpg
+2026-01-09 02:10:07,motorcycle,Unreadable,violations/violation_20260109_021007_motorcycle_9232.jpg
+2026-01-09 02:31:51,car,Unreadable,violations/violation_20260109_023150_car_2585.jpg
+2026-01-09 02:37:53,car,Unreadable,violations/violation_20260109_023753_car_657.jpg
+2026-01-09 02:38:33,car,person,violations/violation_20260109_023833_car_1070.jpg
+2026-01-09 02:41:37,car,Unreadable,violations/violation_20260109_024137_car_2477.jpg
+2026-01-09 02:41:58,car,person D.2584,violations/violation_20260109_024157_car_2403.jpg
+2026-01-09 02:42:08,car,car ID.2584,violations/violation_20260109_024208_car_2585.jpg
+2026-01-09 02:42:56,car,car ID,violations/violation_20260109_024256_car_2948.jpg
+2026-01-09 02:43:19,car,Unreadable,violations/violation_20260109_024319_car_2584.jpg
+2026-01-09 02:44:05,car,Unreadable,violations/violation_20260109_024405_car_3330.jpg
+2026-01-09 02:45:30,car,Unreadable,violations/violation_20260109_024530_car_3762.jpg
