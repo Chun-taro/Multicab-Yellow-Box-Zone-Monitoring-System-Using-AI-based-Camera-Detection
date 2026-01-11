@@ -2,12 +2,13 @@
 __pycache__/
 *.pyc
 
-# Videos (Ignore all MP4s to be safe)
+# Videos
 *.mp4
 *.avi
 *.mov
 
-# Specific files requested
+# Specific files
 test_video.mp4
 test_video2.mp4
 test_video3.mp4
+camera/*.mp4
