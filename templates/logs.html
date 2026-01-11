@@ -28,7 +28,7 @@
                         <td>{{ v.plate_number if v.plate_number else 'Unreadable' }}</td>
                         <td>
                             {% if v.image_path %}
-                            <button class="btn-view" onclick="openModal('{{ v.image_path }}')">View Image</button>
+                            <button class="btn-view" onclick="openGlobalModal('{{ v.image_path }}')">View Image</button>
                             {% else %}
                             <span style="color: var(--text-muted);">No Image</span>
                             {% endif %}
@@ -44,32 +44,4 @@
     </div>
 </div>
 
-<!-- Image Modal -->
-<div id="imageModal" class="modal">
-    <div class="modal-content">
-        <span class="close-modal" onclick="closeModal()">&times;</span>
-        <h2 style="margin-bottom: 1rem;">Violation Evidence</h2>
-        <img id="modalImage" class="modal-image" src="" alt="Violation Evidence">
-    </div>
-</div>
-
-<script>
-    function openModal(imagePath) {
-        const modal = document.getElementById('imageModal');
-        const modalImg = document.getElementById('modalImage');
-        modalImg.src = '/static/' + imagePath;
-        modal.style.display = "flex";
-    }
-
-    function closeModal() {
-        document.getElementById('imageModal').style.display = "none";
-    }
-
-    window.onclick = function(event) {
-        const modal = document.getElementById('imageModal');
-        if (event.target == modal) {
-            modal.style.display = "none";
-        }
-    }
-</script>
 {% endblock %}

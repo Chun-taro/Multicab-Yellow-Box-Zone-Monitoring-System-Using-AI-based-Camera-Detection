@@ -45,7 +45,7 @@
                             <td>{{ v.timestamp }}</td>
                             <td><span class="violation-tag">Yellow Box</span></td>
                             <td>{{ v.plate_number if v.plate_number else 'Unreadable' }}</td>
-                            <td><button class="btn-view" onclick="openModal('{{ v.image_path }}')">View</button></td>
+                            <td><button class="btn-view" onclick="openGlobalModal('{{ v.image_path }}')">View</button></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -55,15 +55,6 @@
                 <p style="color: var(--text-muted); text-align: center; margin-top: 2rem;">No recent violations detected.</p>
             {% endif %}
         </div>
-    </div>
-</div>
-
-<!-- Image Modal -->
-<div id="imageModal" class="modal">
-    <div class="modal-content">
-        <span class="close-modal" onclick="closeModal()">&times;</span>
-        <h2 style="margin-bottom: 1rem;">Violation Evidence</h2>
-        <img id="modalImage" class="modal-image" src="" alt="Violation Evidence">
     </div>
 </div>
 
@@ -97,7 +88,7 @@
                             <td>${v.timestamp}</td>
                             <td><span class="violation-tag">Yellow Box</span></td>
                             <td>${v.plate_number || 'Unreadable'}</td>
-                            <td><button class="btn-view" onclick="openModal('${v.image_path}')">View</button></td>
+                            <td><button class="btn-view" onclick="openGlobalModal('${v.image_path}')">View</button></td>
                         </tr>`;
                 });
 
@@ -105,25 +96,6 @@
                 container.innerHTML = html;
             })
             .catch(err => console.error('Error fetching alerts:', err));
-    }
-
-    function openModal(imagePath) {
-        const modal = document.getElementById('imageModal');
-        const modalImg = document.getElementById('modalImage');
-        modalImg.src = '/static/' + imagePath;
-        modal.style.display = "flex";
-    }
-
-    function closeModal() {
-        document.getElementById('imageModal').style.display = "none";
-    }
-
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-        const modal = document.getElementById('imageModal');
-        if (event.target == modal) {
-            modal.style.display = "none";
-        }
     }
 
     // Poll every 2 seconds

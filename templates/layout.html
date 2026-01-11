@@ -10,6 +10,130 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Responsive Design Overrides */
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr !important;
+                display: grid;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100% !important;
+                height: auto !important;
+                position: relative !important;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1rem;
+            }
+
+            .sidebar .brand {
+                margin-bottom: 0 !important;
+            }
+
+            .sidebar .nav-links {
+                display: flex;
+                flex-direction: row;
+                gap: 1.5rem;
+                margin-top: 0 !important;
+            }
+
+            .sidebar .nav-links li {
+                margin-bottom: 0 !important;
+            }
+
+            .main-content {
+                margin-left: 0 !important;
+                width: 100%;
+                padding: 1rem;
+            }
+
+            .video-container, .video-feed {
+                width: 100%;
+                height: auto;
+            }
+
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Optimize table for small screens */
+            table {
+                width: 100%;
+            }
+
+            th, td {
+                padding: 0.5rem !important;
+                font-size: 0.9rem;
+            }
+
+            /* Hide 'Type' column on dashboard mobile to ensure Evidence button is visible */
+            .dashboard-grid th:nth-child(2), 
+            .dashboard-grid td:nth-child(2) {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .sidebar .nav-link span {
+                display: none;
+            }
+        }
+
+        /* Notification Toast */
+        .notification-toast {
+            position: fixed;
+            top: -100px; /* Hidden initially */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #dc3545; /* Red for alert */
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 10000;
+            cursor: pointer;
+            transition: top 0.5s ease-in-out;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            min-width: 300px;
+        }
+
+        .notification-toast.show {
+            top: 20px;
+        }
+
+        .toast-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast-message {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toast-title {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .toast-details {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+    </style>
 </head>
 <body>
     <!-- Sidebar -->
@@ -38,5 +162,96 @@
     <main class="main-content">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Notification Toast -->
+    <div id="notification-toast" class="notification-toast" onclick="handleNotificationClick()">
+        <div class="toast-content">
+            <i class="fas fa-exclamation-circle fa-lg"></i>
+            <div class="toast-message">
+                <span class="toast-title">New Violation Detected!</span>
+                <span id="toast-details" class="toast-details"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Image Modal -->
+    <div id="globalImageModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeGlobalModal()">&times;</span>
+            <h2 style="margin-bottom: 1rem;">Violation Evidence</h2>
+            <img id="globalModalImage" class="modal-image" src="" alt="Violation Evidence">
+        </div>
+    </div>
+
+    <script>
+        let lastViolationId = 0;
+        let currentViolationImage = '';
+
+        function checkNewViolations() {
+            fetch('/api/recent_violations')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        const latest = data[0];
+                        const latestId = parseInt(latest.id);
+
+                        // Initialize on first load
+                        if (lastViolationId === 0) {
+                            lastViolationId = latestId;
+                            return;
+                        }
+
+                        if (latestId > lastViolationId) {
+                            lastViolationId = latestId;
+                            showNotification(latest);
+                        }
+                    }
+                })
+                .catch(err => console.error('Error polling violations:', err));
+        }
+
+        function showNotification(violation) {
+            const toast = document.getElementById('notification-toast');
+            const details = document.getElementById('toast-details');
+            
+            details.innerText = `Plate: ${violation.plate_number || 'Unreadable'}`;
+            currentViolationImage = violation.image_path;
+            
+            toast.classList.add('show');
+            
+            // Auto hide after 5 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 5000);
+        }
+
+        function handleNotificationClick() {
+            if (currentViolationImage) {
+                openGlobalModal(currentViolationImage);
+                document.getElementById('notification-toast').classList.remove('show');
+            }
+        }
+
+        function openGlobalModal(imagePath) {
+            const modal = document.getElementById('globalImageModal');
+            const modalImg = document.getElementById('globalModalImage');
+            modalImg.src = '/static/' + imagePath;
+            modal.style.display = "flex";
+        }
+
+        function closeGlobalModal() {
+            document.getElementById('globalImageModal').style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('globalImageModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Poll every 2 seconds for notifications
+        setInterval(checkNewViolations, 2000);
+    </script>
 </body>
 </html>

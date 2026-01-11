@@ -2,7 +2,7 @@
 
 class Config:
     # Camera settings
-    camera_source = 'camera/test_video3.mp4'
+    camera_source = 'camera/test_video2.mp4'
   
     FRAME_WIDTH = 1440
     FRAME_HEIGHT = 900
@@ -30,5 +30,8 @@ class Config:
     DEBUG = False
     HOST = '127.0.0.1'
     PORT = 5000
+
+    # Desktop App settings
+    WINDOW_TITLE = 'Multicab Yellow Box Zone Monitoring'
 
 config = Config()
