@@ -13,6 +13,7 @@ import math
 import warnings
 import csv
 import re
+import requests
 try:
     import easyocr
 except ImportError:
@@ -393,6 +394,22 @@ def generate_frames():
                                     except TypeError:
                                         # Fallback to 3 arguments if database doesn't support blob
                                         db.insert_violation(db_label, db_timestamp, db_image_path)
+                                
+                                # --- SYNC TO NODE.JS BACKEND (Fallback Logic) ---
+                                try:
+                                    # Attempt to send data to the Node.js/MongoDB backend
+                                    # If this fails, the data is already saved in SQLite (above), so no data loss.
+                                    node_api_url = "http://localhost:5001/api/violations"
+                                    payload = {
+                                        "timestamp": db_timestamp,
+                                        "label": label,
+                                        "plate_number": plate_text if plate_text else "Unreadable",
+                                        "image_path": db_image_path
+                                    }
+                                    requests.post(node_api_url, json=payload, timeout=1)
+                                except Exception as sync_error:
+                                    print(f"Warning: Could not sync to Node.js Backend ({sync_error}). Data saved locally only.")
+
                             except Exception as e:
                                 print(f"Database error: {e}")
 

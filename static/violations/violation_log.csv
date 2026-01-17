@@ -69,3 +69,5 @@ Timestamp,Vehicle ID,Type,Plate Number,Image Path
 2026-01-11 13:29:07,motorcycle,Unreadable,violations/violation_20260111_132907_motorcycle_150.jpg
 2026-01-11 13:33:41,motorcycle,Unreadable,violations/violation_20260111_133341_motorcycle_150.jpg
 2026-01-11 13:33:42,car,Unreadable,violations/violation_20260111_133342_car_22.jpg
+2026-01-17 15:11:14,motorcycle,Unreadable,violations/violation_20260117_151114_motorcycle_150.jpg
+2026-01-17 15:11:16,car,Unreadable,violations/violation_20260117_151116_car_22.jpg
