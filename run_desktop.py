@@ -8,10 +8,10 @@ from config.config import config
 # Please ensure your main application file is named 'app.py' or 'main.py'
 # and the Flask instance is named 'app'.
 try:
-    from app import app, monitoring_loop
+    from app import app
 except ImportError:
     try:
-        from main import app, monitoring_loop
+        from main import app
     except ImportError:
         print("Error: Could not import 'app' or 'monitoring_loop'. Please ensure your main Flask file is named 'app.py' or 'main.py'.")
         sys.exit(1)
@@ -22,12 +22,6 @@ def start_server():
     app.run(host=config.HOST, port=config.PORT, debug=False, use_reloader=False)
 
 if __name__ == '__main__':
-    # Start the monitoring loop in a background thread
-    # This handles the camera and AI detection
-    monitor_t = threading.Thread(target=monitoring_loop)
-    monitor_t.daemon = True
-    monitor_t.start()
-
     # Start Flask in a background thread
     server_t = threading.Thread(target=start_server)
     server_t.daemon = True

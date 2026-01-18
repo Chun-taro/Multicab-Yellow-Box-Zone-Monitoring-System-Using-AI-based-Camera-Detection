@@ -2,22 +2,41 @@ import time
 
 class StopTimer:
     def __init__(self):
-        self.stop_times = {}  # vehicle_id: {'start': timestamp, 'total': seconds}
+        self.start_times = {}
+        self.stop_times = {}
+        self.is_stopped = {}
+        self.violation_logged = {}  # New: to track logged violations
 
-    def update(self, vehicle_id, in_zone):
-        if vehicle_id not in self.stop_times:
-            self.stop_times[vehicle_id] = {'start': None, 'total': 0}
-
-        if in_zone:
-            if self.stop_times[vehicle_id]['start'] is None:
-                self.stop_times[vehicle_id]['start'] = time.time()
+    def update(self, object_id, is_in_zone):
+        if is_in_zone:
+            if object_id not in self.start_times:
+                self.start_times[object_id] = time.time()
+                self.is_stopped[object_id] = True
+            self.stop_times[object_id] = time.time()
         else:
-            if self.stop_times[vehicle_id]['start'] is not None:
-                self.stop_times[vehicle_id]['total'] += time.time() - self.stop_times[vehicle_id]['start']
-                self.stop_times[vehicle_id]['start'] = None
+            # Vehicle is outside the zone, reset its state
+            if object_id in self.start_times:
+                del self.start_times[object_id]
+            if object_id in self.stop_times:
+                del self.stop_times[object_id]
+            if object_id in self.is_stopped:
+                del self.is_stopped[object_id]
+            if object_id in self.violation_logged:
+                del self.violation_logged[object_id]
 
-    def get_stop_time(self, vehicle_id):
-        return self.stop_times.get(vehicle_id, {'total': 0})['total']
+    def check_violation(self, object_id, time_limit):
+        if self.violation_logged.get(object_id):
+            return False
+        if self.is_stopped.get(object_id):
+            if self.get_stop_time(object_id) > time_limit:
+                return True
+        return False
 
-    def check_violation(self, vehicle_id, limit):
-        return self.get_stop_time(vehicle_id) > limit
+    def get_stop_time(self, object_id):
+        if object_id in self.start_times and object_id in self.stop_times:
+            return self.stop_times[object_id] - self.start_times[object_id]
+        return 0
+
+    def log_violation(self, object_id):
+        """Mark a violation as logged to prevent duplicate entries."""
+        self.violation_logged[object_id] = True

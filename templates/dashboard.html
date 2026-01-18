@@ -59,46 +59,63 @@
 </div>
 
 <script>
-    function fetchRecentAlerts() {
-        fetch('/api/recent_violations')
-            .then(response => response.json())
-            .then(data => {
-                const container = document.getElementById('recent-alerts-container');
-                if (data.length === 0) {
-                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 2rem;">No recent violations detected.</p>';
-                    return;
-                }
+    function updateViolationList(data) {
+        const container = document.getElementById('recent-alerts-container');
+        if (data.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 2rem;">No recent violations detected.</p>';
+            return;
+        }
 
-                let html = `
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Type</th>
-                                <th>Plate Number</th>
-                                <th>Evidence</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-                
-                data.forEach(v => {
-                    html += `
-                        <tr>
-                            <td>${v.timestamp}</td>
-                            <td><span class="violation-tag">Yellow Box</span></td>
-                            <td>${v.plate_number || 'Unreadable'}</td>
-                            <td><button class="btn-view" onclick="openGlobalModal('${v.image_path}')">View</button></td>
-                        </tr>`;
-                });
+        let html = `
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Plate Number</th>
+                        <th>Evidence</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        
+        data.forEach(v => {
+            html += `
+                <tr>
+                    <td>${v.timestamp}</td>
+                    <td><span class="violation-tag">Yellow Box</span></td>
+                    <td>${v.plate_number || 'Unreadable'}</td>
+                    <td><button class="btn-view" onclick="openGlobalModal('${v.image_path}')">View</button></td>
+                </tr>`;
+        });
 
-                html += `</tbody></table></div>`;
-                container.innerHTML = html;
-            })
-            .catch(err => console.error('Error fetching alerts:', err));
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
     }
 
-    // Poll every 2 seconds
-    setInterval(fetchRecentAlerts, 2000);
+    function pollForViolations() {
+        // 1. Make a request to the long-polling endpoint and wait for the server to respond.
+        fetch('/api/wait_for_violation')
+            .then(response => response.json())
+            .then(data => {
+                // 2. If the server signals an update has occurred...
+                if (data.update) {
+                    console.log("New violation detected! Fetching updated list.");
+                    // ...fetch the new list of recent violations.
+                    fetch('/api/recent_violations')
+                        .then(response => response.json())
+                        .then(violations => updateViolationList(violations));
+                }
+                // 3. Whether there was an update or not, immediately poll again.
+                pollForViolations();
+            })
+            .catch(error => {
+                console.error('Long polling error:', error);
+                setTimeout(pollForViolations, 5000); // Wait 5s on error before retrying
+            });
+    }
+
+    // Start the long-polling process once the page is loaded.
+    document.addEventListener('DOMContentLoaded', pollForViolations);
 </script>
 {% endblock %}

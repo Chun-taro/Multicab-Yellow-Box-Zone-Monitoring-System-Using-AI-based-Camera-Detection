@@ -1,15 +1,16 @@
 import cv2
 import numpy as np
+from scipy.spatial import distance as dist
 
 class CentroidTracker:
     def __init__(self, max_disappeared=50):
         self.next_object_id = 0
-        self.objects = {}
+        self.objects = {}  # Stores {objectID: (centroid, bbox)}
         self.disappeared = {}
         self.max_disappeared = max_disappeared
 
-    def register(self, centroid):
-        self.objects[self.next_object_id] = centroid
+    def register(self, centroid, bbox):
+        self.objects[self.next_object_id] = (centroid, bbox)
         self.disappeared[self.next_object_id] = 0
         self.next_object_id += 1
 
@@ -33,12 +34,13 @@ class CentroidTracker:
 
         if len(self.objects) == 0:
             for i in range(0, len(input_centroids)):
-                self.register(input_centroids[i])
+                self.register(input_centroids[i], rects[i])
         else:
             object_ids = list(self.objects.keys())
-            object_centroids = list(self.objects.values())
+            # Extract centroids for distance calculation
+            object_centroids = [c for c, b in self.objects.values()]
 
-            D = cv2.distance.cdist(np.array(object_centroids), input_centroids)
+            D = dist.cdist(np.array(object_centroids), input_centroids)
 
             rows = D.min(axis=1).argsort()
             cols = D.argmin(axis=1)[rows]
@@ -50,7 +52,8 @@ class CentroidTracker:
                 if row in used_rows or col in used_cols:
                     continue
                 object_id = object_ids[row]
-                self.objects[object_id] = input_centroids[col]
+                # Update with the new centroid and bounding box
+                self.objects[object_id] = (input_centroids[col], rects[col])
                 self.disappeared[object_id] = 0
                 used_rows.add(row)
                 used_cols.add(col)
@@ -66,6 +69,6 @@ class CentroidTracker:
                         self.deregister(object_id)
             else:
                 for col in unused_cols:
-                    self.register(input_centroids[col])
+                    self.register(input_centroids[col], rects[col])
 
         return self.objects
