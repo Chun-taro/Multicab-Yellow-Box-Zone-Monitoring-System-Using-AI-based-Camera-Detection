@@ -6,7 +6,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 class Config:
     # Camera settings
-    camera_source = os.path.join(BASE_DIR, 'camera', 'test_video2.mp4')
+    camera_source = os.path.join(BASE_DIR, 'camera', 'test_video5.mp4')
   
     FRAME_WIDTH = 1440
     FRAME_HEIGHT = 900
@@ -19,11 +19,12 @@ class Config:
     MODEL_PATH = 'yolov8s.pt'
 
     # Zone settings (example coordinates for yellow box zone)
+    # For config/config.py:
     YELLOW_BOX_ZONE = [
-        (645, 360),
-    (822, 369),
-    (885, 697),
-    (496, 675),
+         (872, 585),
+        (1056, 615),
+        (1154, 248),
+        (1080, 236),
     ]
 
     # Time limits

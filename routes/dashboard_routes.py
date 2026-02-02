@@ -151,50 +151,8 @@ def get_reader():
         reader = easyocr.Reader(['en'])
     return reader
 
-class Tracker:
-    def __init__(self):
-        # Store the center positions of the objects
-        self.center_points = {}
-        # Keep the count of the IDs
-        self.id_count = 0
-
-    def update(self, objects_rect):
-        # Objects boxes and ids
-        objects_bbs_ids = []
-
-        # Get center point of new object
-        for rect in objects_rect:
-            x, y, w, h, label = rect
-            cx = (x + x + w) // 2
-            cy = (y + y + h) // 2
-
-            # Find out if that object was detected already
-            same_object_detected = False
-            for id, pt in self.center_points.items():
-                dist = math.hypot(cx - pt[0], cy - pt[1])
-
-                if dist < 50: # Distance threshold to match ID
-                    self.center_points[id] = (cx, cy)
-                    objects_bbs_ids.append([x, y, w, h, label, id])
-                    same_object_detected = True
-                    break
-
-            # New object detection
-            if not same_object_detected:
-                self.center_points[self.id_count] = (cx, cy)
-                objects_bbs_ids.append([x, y, w, h, label, self.id_count])
-                self.id_count += 1
-
-        # Clean the dictionary by center points to remove IDS not used anymore
-        new_center_points = {}
-        for obj in objects_bbs_ids:
-            _, _, _, _, _, object_id = obj
-            center = self.center_points[object_id]
-            new_center_points[object_id] = center
-
-        # Update dictionary with IDs not used removed
-        self.center_points = new_center_points.copy()
-        return objects_bbs_ids
+# Import the more robust CentroidTracker
+from ai_model.tracker import CentroidTracker
 
 def generate_frames():
     camera = CameraHandler()
@@ -218,14 +176,15 @@ def generate_frames():
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + placeholder + b'\r\n')
 
-    # Define Yellow Box Zone (Polygon points: [x, y])
-    # Adjust these coordinates to match your actual camera view
-    yellow_zone = np.array([
-        [645, 360],
-        [822, 369],
-        [885, 697],
-        [496, 675]
-    ], np.int32).reshape((-1, 1, 2))
+    # Load Yellow Box Zone from the central configuration
+    yellow_zone = np.array(config.YELLOW_BOX_ZONE, np.int32).reshape((-1, 1, 2))
+
+    # Optimization: Create a bounding box for the zone to crop the frame for detection.
+    # This significantly speeds up processing by running the AI model on a smaller image.
+    x_coords = yellow_zone[:, :, 0]
+    y_coords = yellow_zone[:, :, 1]
+    zone_x_min, zone_x_max = np.min(x_coords), np.max(x_coords)
+    zone_y_min, zone_y_max = np.min(y_coords), np.max(y_coords)
 
     # Setup for saving violations
     save_dir = os.path.join("static", "violations")
@@ -233,7 +192,8 @@ def generate_frames():
         os.makedirs(save_dir)
     
     # Initialize Tracker
-    tracker = Tracker()
+    # Use the more robust CentroidTracker for better performance and accuracy
+    tracker = CentroidTracker(max_disappeared=30)
     
     # Dictionaries to store state per vehicle ID
     vehicle_timers = {}   # {id: start_time}
@@ -263,21 +223,41 @@ def generate_frames():
         detections_for_tracker = [] # List of [x, y, w, h, label]
 
         if model:
-            # Convert BGR (OpenCV) to RGB (YOLOv5)
-            img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = model(img)
+            # --- PERFORMANCE OPTIMIZATION: Crop frame to Zone of Interest ---
+            # Instead of processing the whole frame, we only run the AI model on the
+            # area containing the yellow box, significantly improving FPS.
+            pad = 20 # Add padding to catch vehicles entering the zone
+            h_frame, w_frame = frame.shape[:2]
+            crop_x1 = max(0, zone_x_min - pad)
+            crop_y1 = max(0, zone_y_min - pad)
+            crop_x2 = min(w_frame, zone_x_max + pad)
+            crop_y2 = min(h_frame, zone_y_max + pad)
+            
+            zone_crop = frame[crop_y1:crop_y2, crop_x1:crop_x2]
+
+            # Convert BGR (OpenCV) to RGB (YOLOv5) and run detection on the smaller crop
+            img_rgb = cv2.cvtColor(zone_crop, cv2.COLOR_BGR2RGB)
+            results = model(img_rgb)
             
             # Draw the Yellow Box Zone on the frame
             cv2.polylines(frame, [yellow_zone], isClosed=True, color=(0, 255, 255), thickness=2)
 
             # 1. Collect Detections
             detections = results.xyxy[0].cpu().numpy()
+            bbox_to_label = {} # Helper to re-associate labels after tracking
             person_count = 0
             vehicle_count = 0
             
             for *xyxy, conf, cls in detections:
                 label = model.names[int(cls)]
-                x1, y1, x2, y2 = map(int, xyxy)
+                # The model returns coordinates relative to the `zone_crop`.
+                # We must translate them back to the full frame's coordinate system
+                # by adding the crop's top-left offset (crop_x1, crop_y1).
+                x1_crop, y1_crop, x2_crop, y2_crop = map(int, xyxy)
+                x1 = x1_crop + crop_x1
+                y1 = y1_crop + crop_y1
+                x2 = x2_crop + crop_x1
+                y2 = y2_crop + crop_y1
                 w, h = x2 - x1, y2 - y1
                 
                 if label == 'person':
@@ -287,17 +267,26 @@ def generate_frames():
                     cv2.putText(frame, f"{label}", (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
                 elif label in ['car', 'truck', 'bus', 'motorcycle']:
                     vehicle_count += 1
-                    detections_for_tracker.append([x1, y1, w, h, label])
+                    # The CentroidTracker expects (startX, startY, endX, endY)
+                    rect = (x1, y1, x2, y2)
+                    detections_for_tracker.append(rect)
+                    bbox_to_label[rect] = label
 
             # 2. Update Tracker
-            tracked_objects = tracker.update(detections_for_tracker)
+            tracked_objects_map = tracker.update(detections_for_tracker)
             current_frame_ids = set()
             
             # 3. Process Tracked Vehicles
-            for obj in tracked_objects:
-                x1, y1, w, h, label, obj_id = obj
+            for obj_id, (centroid, bbox) in tracked_objects_map.items():
+                x1, y1, x2, y2 = bbox
+                w, h = x2 - x1, y2 - y1
+                # Re-associate the label using the bounding box
+                label = bbox_to_label.get(tuple(bbox), 'vehicle')
+
                 x2, y2 = x1 + w, y1 + h
-                cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                # Calculate center point and explicitly cast to standard Python integers.
+                # This prevents a cv2.error caused by passing numpy integer types to OpenCV functions.
+                cx, cy = int((x1 + x2) / 2), int((y1 + y2) / 2)
                 current_frame_ids.add(obj_id)
                 
                 # Check if inside Yellow Zone

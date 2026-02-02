@@ -91,3 +91,20 @@ Timestamp,Vehicle ID,Type,Plate Number,Image Path
 2026-01-17 16:52:06,motorcycle,Unreadable,violations/violation_20260117_165206_motorcycle_150.jpg
 2026-01-18 22:04:34,car,Unreadable,violations/violation_20260118_220434_car_22.jpg
 2026-01-18 22:04:36,motorcycle,Unreadable,violations/violation_20260118_220436_motorcycle_150.jpg
+2026-02-02 20:16:50,bus,person erson Hic Jqu VISIINAE,violations/violation_20260202_201650_bus_1680.jpg
+2026-02-02 20:32:14,bus,person INLA:,violations/violation_20260202_203214_bus_4200.jpg
+2026-02-02 20:40:56,bus,perso,violations/violation_20260202_204056_bus_65.jpg
+2026-02-02 20:41:59,truck,Unreadable,violations/violation_20260202_204159_truck_226.jpg
+2026-02-02 20:42:07,truck,person person,violations/violation_20260202_204206_truck_205.jpg
+2026-02-02 20:42:14,car,uck IDz=,violations/violation_20260202_204214_car_268.jpg
+2026-02-02 20:58:38,truck,Unreadable,violations/violation_20260202_205838_truck_65.jpg
+2026-02-02 20:59:46,truck,Unreadable,violations/violation_20260202_205946_truck_226.jpg
+2026-02-02 20:59:51,truck,Unreadable,violations/violation_20260202_205951_truck_205.jpg
+2026-02-02 20:59:58,car,Unreadable,violations/violation_20260202_205958_car_268.jpg
+2026-02-02 21:01:37,bus,Unreadable,violations/violation_20260202_210137_bus_1.jpg
+2026-02-02 21:01:39,bus,Unreadable,violations/violation_20260202_210139_bus_34.jpg
+2026-02-02 21:02:03,truck,Unreadable,violations/violation_20260202_210203_truck_54.jpg
+2026-02-02 21:02:18,vehicle,Unreadable,violations/violation_20260202_210218_vehicle_67.jpg
+2026-02-02 21:03:00,truck,Unreadable,violations/violation_20260202_210300_truck_97.jpg
+2026-02-02 21:03:06,car,Unreadable,violations/violation_20260202_210306_car_73.jpg
+2026-02-02 21:06:38,vehicle,Unreadable,violations/violation_20260202_210638_vehicle_6.jpg

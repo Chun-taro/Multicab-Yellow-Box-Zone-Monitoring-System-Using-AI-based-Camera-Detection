@@ -1,5 +1,12 @@
 import cv2
 import numpy as np
+import sys
+import os
+
+# Add project root to path to allow sibling imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utils.camera import CameraHandler
+from config.config import config
 
 # Global variables
 points = []
@@ -29,38 +36,45 @@ def click_event(event, x, y, flags, param):
             cv2.addWeighted(overlay, 0.3, img, 0.7, 0, img)
             
             print("\n" + "="*50)
-            print("   COPY THE CODE BELOW INTO routes/dashboard_routes.py")
+            print("   COPY THE COORDINATES INTO YOUR CONFIGURATION FILE")
             print("="*50)
-            print("    yellow_zone = np.array([")
+
+            # Format for config/config.py
+            print("\n# For config/config.py:")
+            print("YELLOW_BOX_ZONE = [")
+            for p in points:
+                print(f"    ({p[0]}, {p[1]}),")
+            print("]")
+            
+            # Format for routes/dashboard_routes.py
+            print("\n# For routes/dashboard_routes.py:")
+            print("yellow_zone = np.array([")
             for p in points:
                 print(f"        [{p[0]}, {p[1]}],")
             print("    ], np.int32).reshape((-1, 1, 2))")
             print("="*50 + "\n")
-            
             print("Done! Press 'q' to quit.")
 
         cv2.imshow('Set Coordinates', img)
 
 def main():
     global img, points
-    
-    # Try opening camera (Source 1 first, then 0)
-    cap = cv2.VideoCapture(1)
-    if not cap.isOpened():
-        print("Camera 1 failed, trying Camera 0...")
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            print("Error: Could not open any camera.")
-            return
 
-    print("Camera opened.")
+    # Use the same CameraHandler as the main application for consistency
+    camera = CameraHandler()
+    if camera.use_placeholder:
+        print(f"Error: Could not open camera source '{config.camera_source}'.")
+        print("Please check your camera or the 'camera_source' in 'config/config.py'.")
+        return
+
+    print(f"Camera source '{config.camera_source}' opened.")
     print("1. Position your camera.")
     print("2. Press SPACEBAR to freeze the frame and start drawing.")
     print("3. Press 'q' to quit without saving.")
     
     while True:
-        ret, frame = cap.read()
-        if not ret:
+        frame = camera.read_frame()
+        if frame is None:
             break
             
         cv2.imshow('Set Coordinates', frame)
@@ -70,7 +84,7 @@ def main():
             img = frame.copy()
             break
         elif key == ord('q'):
-            cap.release()
+            camera.close()
             cv2.destroyAllWindows()
             return
 
@@ -81,8 +95,8 @@ def main():
         cv2.imshow('Set Coordinates', img)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-            
-    cap.release()
+
+    camera.close()
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
