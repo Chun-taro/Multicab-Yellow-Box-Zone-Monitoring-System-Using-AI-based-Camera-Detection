@@ -14,8 +14,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Timestamp</th>
-                        <th>Violation Type</th>
-                        <th>Plate Number</th>
+                        <th>Vehicle Type</th>
                         <th>Evidence</th>
                     </tr>
                 </thead>
@@ -24,8 +23,7 @@
                     <tr>
                         <td>#{{ v.id }}</td>
                         <td>{{ v.timestamp }}</td>
-                        <td><span class="violation-tag">Yellow Box Entry</span></td>
-                        <td>{{ v.plate_number if v.plate_number else 'Unreadable' }}</td>
+                        <td>{{ v.label }}</td>
                         <td>
                             {% if v.image_path %}
                             <button class="btn-view" onclick="openGlobalModal('{{ v.image_path }}')">View Image</button>

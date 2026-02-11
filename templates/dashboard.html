@@ -34,8 +34,7 @@
                     <thead>
                         <tr>
                             <th>Time</th>
-                            <th>Type</th>
-                            <th>Plate Number</th>
+                            <th>Vehicle Type</th>
                             <th>Evidence</th>
                         </tr>
                     </thead>
@@ -43,8 +42,7 @@
                         {% for v in violations[:10] %}
                         <tr>
                             <td>{{ v.timestamp }}</td>
-                            <td><span class="violation-tag">Yellow Box</span></td>
-                            <td>{{ v.plate_number if v.plate_number else 'Unreadable' }}</td>
+                            <td><span class="violation-tag">{{ v.label }}</span></td>
                             <td><button class="btn-view" onclick="openGlobalModal('{{ v.image_path }}')">View</button></td>
                         </tr>
                         {% endfor %}
@@ -72,8 +70,7 @@
                 <thead>
                     <tr>
                         <th>Time</th>
-                        <th>Type</th>
-                        <th>Plate Number</th>
+                        <th>Vehicle Type</th>
                         <th>Evidence</th>
                     </tr>
                 </thead>
@@ -83,8 +80,7 @@
             html += `
                 <tr>
                     <td>${v.timestamp}</td>
-                    <td><span class="violation-tag">Yellow Box</span></td>
-                    <td>${v.plate_number || 'Unreadable'}</td>
+                    <td><span class="violation-tag">${v.label}</span></td>
                     <td><button class="btn-view" onclick="openGlobalModal('${v.image_path}')">View</button></td>
                 </tr>`;
         });

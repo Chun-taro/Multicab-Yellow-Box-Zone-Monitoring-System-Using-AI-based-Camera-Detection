@@ -214,7 +214,7 @@
             const toast = document.getElementById('notification-toast');
             const details = document.getElementById('toast-details');
             
-            details.innerText = `Plate: ${violation.plate_number || 'Unreadable'}`;
+            details.innerText = `Vehicle Type: ${violation.label || 'Unknown'}`;
             currentViolationImage = violation.image_path;
             
             toast.classList.add('show');

@@ -15,11 +15,6 @@ import csv
 import re
 import threading
 import requests
-try:
-    import easyocr
-except ImportError:
-    easyocr = None
-    print("Warning: 'easyocr' not installed. Plate reading will be disabled.")
 
 dashboard_bp = Blueprint('dashboard', __name__)
 db = Database()
@@ -46,15 +41,6 @@ def process_violations(raw_data):
             if len(row) > 2: item['timestamp'] = row[2]
             if len(row) > 3: item['image_path'] = row[3]
         
-        # Extract plate number from label (Format: "car [ABC 123]")
-        raw_label = item.get('label', '')
-        plate_match = re.search(r'\[(.*?)\]', raw_label)
-        if plate_match:
-            item['plate_number'] = plate_match.group(1)
-            item['label'] = raw_label.split('[')[0].strip()
-        else:
-            item['plate_number'] = 'Unreadable'
-            
         processed.append(item)
     return processed
 
@@ -142,15 +128,6 @@ def get_model():
                 sys.modules['utils'] = local_utils
     return model
 
-# Global OCR reader
-reader = None
-def get_reader():
-    global reader
-    if reader is None and easyocr is not None:
-        # Initialize EasyOCR reader (English)
-        reader = easyocr.Reader(['en'])
-    return reader
-
 # Import the more robust CentroidTracker
 from ai_model.tracker import CentroidTracker
 
@@ -200,8 +177,7 @@ def generate_frames():
     movement_start_pos = {} # {id: (time, cx, cy)}
     is_stopped_map = {} # {id: bool}
     violated_ids = set()  # Set of IDs that have already triggered a violation
-    vehicle_plates = {}   # {id: plate_text}
-    ocr_processed_ids = set() # IDs that we have already attempted to read
+    vehicle_types = {}    # {id: vehicle_type}
     resolution_checked = False
 
     while True:
@@ -318,24 +294,8 @@ def generate_frames():
                 if is_in_zone and is_stopped and label != 'person':
                     if obj_id not in vehicle_timers:
                         vehicle_timers[obj_id] = time.time() # Start timer
-                        # Attempt OCR early (when timer starts) to show on screen
-                        if obj_id not in ocr_processed_ids:
-                            ocr_processed_ids.add(obj_id)
-                            try:
-                                ocr_reader = get_reader()
-                                if ocr_reader:
-                                    h_img, w_img = frame.shape[:2]
-                                    pad = 20
-                                    c_x1, c_y1 = max(0, x1 - pad), max(0, y1 - pad)
-                                    c_x2, c_y2 = min(w_img, x2 + pad), min(h_img, y2 + pad)
-                                    crop_ocr = frame[c_y1:c_y2, c_x1:c_x2]
-                                    results = ocr_reader.readtext(crop_ocr, detail=0)
-                                    if results:
-                                        p_text = " ".join([r for r in results if len(r) > 2])
-                                        if len(p_text) > 3:
-                                            vehicle_plates[obj_id] = p_text
-                            except Exception as e:
-                                print(f"Early OCR Error: {e}")
+                        # Store vehicle type
+                        vehicle_types[obj_id] = label
 
                     elapsed = time.time() - vehicle_timers[obj_id]
 
@@ -352,19 +312,8 @@ def generate_frames():
                         crop_x2, crop_y2 = min(w_img, x2 + pad), min(h_img, y2 + pad)
                         cropped_img = frame[crop_y1:crop_y2, crop_x1:crop_x2]
                         
-                        # Get license plate (from cache or fresh read)
-                        plate_text = vehicle_plates.get(obj_id, "")
-                        if not plate_text:
-                            try:
-                                ocr_reader = get_reader()
-                                if ocr_reader:
-                                    results = ocr_reader.readtext(cropped_img, detail=0)
-                                    if results:
-                                        plate_text = " ".join([r for r in results if len(r) > 2])
-                                        if plate_text:
-                                            vehicle_plates[obj_id] = plate_text
-                            except Exception as e:
-                                print(f"OCR Error: {e}")
+                        # Get vehicle type
+                        vehicle_type = vehicle_types.get(obj_id, label)
 
                         filename = os.path.join(save_dir, f"violation_{timestamp}_{label}_{obj_id}.jpg")
                         cv2.imwrite(filename, cropped_img)
@@ -375,8 +324,8 @@ def generate_frames():
                             db_image_path = f"violations/violation_{timestamp}_{label}_{obj_id}.jpg"
                             db_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             
-                            # Append plate info to label if found
-                            db_label = f"{label} [{plate_text}]" if plate_text else label
+                            # Use vehicle type as label
+                            db_label = vehicle_type
 
                             # Save to CSV
                             csv_path = os.path.join(save_dir, "violation_log.csv")
@@ -385,8 +334,8 @@ def generate_frames():
                                 with open(csv_path, mode='a', newline='') as f:
                                     writer = csv.writer(f)
                                     if not file_exists:
-                                        writer.writerow(['Time', 'Type', 'Plate Number', 'Evidence'])
-                                    writer.writerow([db_timestamp, label, plate_text if plate_text else 'Unreadable', db_image_path])
+                                        writer.writerow(['Timestamp', 'Vehicle Type', 'Evidence'])
+                                    writer.writerow([db_timestamp, vehicle_type, db_image_path])
                             except Exception as e:
                                 print(f"CSV Error: {e}")
 
@@ -396,12 +345,28 @@ def generate_frames():
                                 ret, buffer = cv2.imencode('.jpg', cropped_img)
                                 image_blob = buffer.tobytes() if ret else None
                                 
+                                # Create detection ID from timestamp and tracking object ID
+                                detection_id = f"{timestamp}_{obj_id}"
+                                
                                 try:
-                                    # Try passing image blob as 4th argument (fixes 'missing argument: image' error)
-                                    db.insert_violation(db_label, db_timestamp, db_image_path, image_blob)
-                                except TypeError:
-                                    # Fallback to 3 arguments if database doesn't support blob
-                                    db.insert_violation(db_label, db_timestamp, db_image_path)
+                                    # Insert with enhanced parameters
+                                    db.insert_violation(
+                                        vehicle_type=vehicle_type,
+                                        timestamp=db_timestamp,
+                                        image_path=db_image_path,
+                                        image_blob=image_blob,
+                                        detection_id=detection_id,
+                                        stop_duration=elapsed,
+                                        confidence=0.0,  # TODO: maintain confidence mapping
+                                        notes=f"Object ID: {obj_id}, Stopped for {elapsed:.1f}s"
+                                    )
+                                except TypeError as e:
+                                    # Fallback for old signature
+                                    print(f"Database method signature mismatch: {e}")
+                                    try:
+                                        db.insert_violation(vehicle_type, db_timestamp, db_image_path, image_blob)
+                                    except Exception as e2:
+                                        print(f"Insert violation failed: {e2}")
                             
                             # --- SYNC TO NODE.JS BACKEND (Fallback Logic) ---
                             try:
@@ -410,8 +375,7 @@ def generate_frames():
                                 node_api_url = "http://localhost:5001/api/violations"
                                 payload = {
                                     "timestamp": db_timestamp,
-                                    "label": label,
-                                    "plate_number": plate_text if plate_text else "Unreadable",
+                                    "vehicle_type": vehicle_type,
                                     "image_path": db_image_path
                                 }
                                 requests.post(node_api_url, json=payload, timeout=1)
@@ -446,8 +410,6 @@ def generate_frames():
                 # Draw the bounding box with the determined color
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
                 label_text = f"{label} ID:{obj_id}"
-                if obj_id in vehicle_plates:
-                    label_text += f" [{vehicle_plates[obj_id]}]"
                 cv2.putText(frame, label_text, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
                 cv2.circle(frame, (cx, cy), 2, color, -1)
 
@@ -465,13 +427,9 @@ def generate_frames():
                 if obj_id not in current_frame_ids:
                     del is_stopped_map[obj_id]
             
-            for obj_id in list(vehicle_plates.keys()):
+            for obj_id in list(vehicle_types.keys()):
                 if obj_id not in current_frame_ids:
-                    del vehicle_plates[obj_id]
-            
-            for obj_id in list(ocr_processed_ids):
-                if obj_id not in current_frame_ids:
-                    ocr_processed_ids.remove(obj_id)
+                    del vehicle_types[obj_id]
             
             for obj_id in list(violated_ids):
                 if obj_id not in current_frame_ids:
