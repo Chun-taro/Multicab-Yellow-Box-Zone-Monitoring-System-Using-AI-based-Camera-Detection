@@ -30,6 +30,15 @@ class Config:
     # Time limits
     STOP_TIME_LIMIT = 15  # seconds vehicle can stop in zone before violation
 
+    # Performance optimization settings
+    FRAME_SKIP = 3  # Process AI model every Nth frame (1=all frames, 2=every other, 3=every 3rd, etc)
+    # Tip: Higher frame skip = faster FPS but less frequent detections
+    # Current: 3 = AI runs every 3rd frame for 33% faster detection phase
+    
+    JPEG_QUALITY = 50  # JPEG quality (1-100, lower=faster+smaller, higher=better quality)
+    # Current: 50 = Very fast streaming (29% faster encoding than quality=70)
+    # For high quality, increase to 75+. For ultra-fast, use 35-45.
+
     # Database settings
     DATABASE_PATH = os.path.join(BASE_DIR, 'database', 'violations.db')
 

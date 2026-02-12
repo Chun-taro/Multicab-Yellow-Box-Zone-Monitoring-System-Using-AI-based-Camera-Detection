@@ -20,39 +20,7 @@
         }
 
         @media (max-width: 768px) {
-            body {
-                display: flex;
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100% !important;
-                height: auto !important;
-                position: relative !important;
-                flex-direction: row;
-                justify-content: space-between;
-                align-items: center;
-                padding: 1rem;
-            }
-
-            .sidebar .brand {
-                margin-bottom: 0 !important;
-            }
-
-            .sidebar .nav-links {
-                display: flex;
-                flex-direction: row;
-                gap: 1.5rem;
-                margin-top: 0 !important;
-            }
-
-            .sidebar .nav-links li {
-                margin-bottom: 0 !important;
-            }
-
             .main-content {
-                margin-left: 0 !important;
-                width: 100%;
                 padding: 1rem;
             }
 
@@ -84,6 +52,10 @@
         }
 
         @media (max-width: 480px) {
+            .sidebar .brand span {
+                display: none;
+            }
+
             .sidebar .nav-link span {
                 display: none;
             }
@@ -136,21 +108,32 @@
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
-    <aside class="sidebar">
+    <!-- Hamburger Menu Toggle -->
+    <button class="hamburger-menu" id="hamburger-menu" onclick="toggleDrawer()">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Drawer Overlay (closes drawer when clicked) -->
+    <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+
+    <!-- Sidebar Drawer -->
+    <aside class="sidebar" id="sidebar-drawer">
+        <button class="close-drawer" onclick="closeDrawer()">&times;</button>
         <div class="brand">
             <i class="fas fa-video"></i>
             <span>TrafficAI</span>
         </div>
         <ul class="nav-links">
             <li>
-                <a href="{{ url_for('dashboard.dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard.dashboard' %}active{% endif %}">
+                <a href="{{ url_for('dashboard.dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard.dashboard' %}active{% endif %}" onclick="closeDrawer()">
                     <i class="fas fa-chart-line"></i>
                     <span>Dashboard</span>
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('dashboard.logs') }}" class="nav-link {% if request.endpoint == 'dashboard.logs' %}active{% endif %}">
+                <a href="{{ url_for('dashboard.logs') }}" class="nav-link {% if request.endpoint == 'dashboard.logs' %}active{% endif %}" onclick="closeDrawer()">
                     <i class="fas fa-history"></i>
                     <span>Violation Logs</span>
                 </a>
@@ -184,6 +167,21 @@
     </div>
 
     <script>
+        // Toggle Drawer Navigation
+        function toggleDrawer() {
+            const sidebar = document.getElementById('sidebar-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+
+        function closeDrawer() {
+            const sidebar = document.getElementById('sidebar-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+        }
+
         let lastViolationId = 0;
         let currentViolationImage = '';
 

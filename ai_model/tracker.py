@@ -72,3 +72,7 @@ class CentroidTracker:
                     self.register(input_centroids[col], rects[col])
 
         return self.objects
+
+    def get_current_objects(self):
+        """Get current tracked objects without modifying state (useful for frame skipping)."""
+        return self.objects

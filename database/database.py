@@ -16,96 +16,129 @@ class Database:
         path = db_path or DATABASE_PATH
         self.conn = sqlite3.connect(path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row  # Enable column access by name
+        self.migrate_schema()
         self.create_tables()
         self.initialize_defaults()
+
+    def migrate_schema(self):
+        """Migrate from old schema to new schema if needed."""
+        try:
+            # Check if old violations table exists with old schema
+            cursor = self.conn.execute("PRAGMA table_info(violations)")
+            columns = {row[1] for row in cursor.fetchall()}
+            
+            # If old schema detected, rename and recreate
+            if 'timestamp' in columns and 'violation_timestamp' not in columns:
+                print("Detected old database schema. Migrating...")
+                try:
+                    self.conn.execute("ALTER TABLE violations RENAME TO violations_old")
+                    self.conn.commit()
+                    print("Old violations table backed up as violations_old")
+                except Exception as e:
+                    print(f"Note: {e}")
+                    self.conn.rollback()
+        except Exception as e:
+            # Table might not exist yet, which is fine
+            pass
 
     def create_tables(self):
         """Create all necessary database tables."""
         
-        # Vehicle types lookup table
-        self.conn.execute('''
-        CREATE TABLE IF NOT EXISTS vehicle_types (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type_name TEXT NOT NULL UNIQUE,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        # Monitoring zones
-        self.conn.execute('''
-        CREATE TABLE IF NOT EXISTS zones (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            zone_name TEXT NOT NULL,
-            coordinates TEXT NOT NULL,
-            is_active BOOLEAN DEFAULT 1,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        # Main violations table
-        self.conn.execute('''
-        CREATE TABLE IF NOT EXISTS violations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            violation_timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            detection_id TEXT UNIQUE,
-            vehicle_type_id INTEGER,
-            zone_id INTEGER DEFAULT 1,
-            stop_duration REAL,
-            image_path TEXT,
-            image_blob BLOB,
-            confidence REAL DEFAULT 0.0,
-            notes TEXT,
-            reviewed BOOLEAN DEFAULT 0,
-            status TEXT DEFAULT 'recorded',
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (vehicle_type_id) REFERENCES vehicle_types(id),
-            FOREIGN KEY (zone_id) REFERENCES zones(id)
-        )
-        ''')
-        
-        # Detection history (optional, for detailed tracking)
-        self.conn.execute('''
-        CREATE TABLE IF NOT EXISTS detection_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            frame_id TEXT,
-            tracking_id INTEGER,
-            vehicle_type_id INTEGER,
-            zone_id INTEGER,
-            centroid_x INTEGER,
-            centroid_y INTEGER,
-            confidence REAL,
-            is_in_zone BOOLEAN,
-            is_stopped BOOLEAN,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (vehicle_type_id) REFERENCES vehicle_types(id),
-            FOREIGN KEY (zone_id) REFERENCES zones(id)
-        )
-        ''')
-        
-        # Statistics table for reporting
-        self.conn.execute('''
-        CREATE TABLE IF NOT EXISTS statistics (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT NOT NULL UNIQUE,
-            total_violations INTEGER DEFAULT 0,
-            violations_by_type TEXT,
-            peak_hour INTEGER,
-            total_vehicles_detected INTEGER DEFAULT 0,
-            system_uptime_minutes INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        # Create indexes for common queries
-        self.conn.execute('CREATE INDEX IF NOT EXISTS idx_violations_timestamp ON violations(violation_timestamp)')
-        self.conn.execute('CREATE INDEX IF NOT EXISTS idx_violations_vehicle_type ON violations(vehicle_type_id)')
-        self.conn.execute('CREATE INDEX IF NOT EXISTS idx_violations_status ON violations(status)')
-        self.conn.execute('CREATE INDEX IF NOT EXISTS idx_detection_tracking_id ON detection_history(tracking_id)')
-        
-        self.conn.commit()
+        try:
+            # Vehicle types lookup table
+            self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS vehicle_types (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type_name TEXT NOT NULL UNIQUE,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            ''')
+            
+            # Monitoring zones
+            self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS zones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                zone_name TEXT NOT NULL,
+                coordinates TEXT NOT NULL,
+                is_active BOOLEAN DEFAULT 1,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            ''')
+            
+            # Main violations table
+            self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS violations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                violation_timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                detection_id TEXT UNIQUE,
+                vehicle_type_id INTEGER,
+                zone_id INTEGER DEFAULT 1,
+                stop_duration REAL,
+                image_path TEXT,
+                image_blob BLOB,
+                confidence REAL DEFAULT 0.0,
+                notes TEXT,
+                reviewed BOOLEAN DEFAULT 0,
+                status TEXT DEFAULT 'recorded',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (vehicle_type_id) REFERENCES vehicle_types(id),
+                FOREIGN KEY (zone_id) REFERENCES zones(id)
+            )
+            ''')
+            
+            # Detection history (optional, for detailed tracking)
+            self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS detection_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                frame_id TEXT,
+                tracking_id INTEGER,
+                vehicle_type_id INTEGER,
+                zone_id INTEGER,
+                centroid_x INTEGER,
+                centroid_y INTEGER,
+                confidence REAL,
+                is_in_zone BOOLEAN,
+                is_stopped BOOLEAN,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (vehicle_type_id) REFERENCES vehicle_types(id),
+                FOREIGN KEY (zone_id) REFERENCES zones(id)
+            )
+            ''')
+            
+            # Statistics table for reporting
+            self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS statistics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL UNIQUE,
+                total_violations INTEGER DEFAULT 0,
+                violations_by_type TEXT,
+                peak_hour INTEGER,
+                total_vehicles_detected INTEGER DEFAULT 0,
+                system_uptime_minutes INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            ''')
+            
+            self.conn.commit()
+            
+            # Create indexes for common queries (after tables are committed)
+            try:
+                self.conn.execute('CREATE INDEX IF NOT EXISTS idx_violations_timestamp ON violations(violation_timestamp)')
+                self.conn.execute('CREATE INDEX IF NOT EXISTS idx_violations_vehicle_type ON violations(vehicle_type_id)')
+                self.conn.execute('CREATE INDEX IF NOT EXISTS idx_violations_status ON violations(status)')
+                self.conn.execute('CREATE INDEX IF NOT EXISTS idx_detection_tracking_id ON detection_history(tracking_id)')
+                self.conn.commit()
+            except Exception as idx_error:
+                print(f"Warning: Index creation failed (non-critical): {idx_error}")
+                self.conn.rollback()
+                
+        except Exception as e:
+            print(f"Error creating database tables: {e}")
+            self.conn.rollback()
+            raise
 
     def initialize_defaults(self):
         """Initialize default vehicle types and zone."""
