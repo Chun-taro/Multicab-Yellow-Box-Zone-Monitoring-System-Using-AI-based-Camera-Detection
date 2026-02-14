@@ -103,72 +103,36 @@ def wait_for_violation():
     else:
         return jsonify({'update': False}) # Timed out, no new violation
 
-# Global model variable to avoid reloading on every request
-model = None
+# Global detector variable to avoid reloading on every request
+from ai_model.detect import VehicleDetector
 
-def get_model():
-    global model
-    if model is None:
-        # Suppress FutureWarning from YOLOv5 using deprecated torch.cuda.amp.autocast
-        warnings.filterwarnings("ignore", category=FutureWarning, message=".*torch.cuda.amp.autocast.*")
-        # Suppress UserWarning from YOLOv5 about pkg_resources being deprecated.
-        # This is an issue for the library maintainers to fix and can be safely ignored.
-        warnings.filterwarnings("ignore", category=UserWarning, message=".*pkg_resources.*")
+detector = None
 
-        # Fix for 'utils' name collision:
-        # YOLOv5 uses a module named 'utils', which conflicts with the local 'utils' folder.
-        # We need to remove the local 'utils' from sys.modules and sys.path temporarily.
-        original_path = sys.path.copy()
-        local_utils = sys.modules.pop('utils', None)
-        
-        # Remove current directory and dot from sys.path to prevent finding local utils
-        sys.path = [p for p in sys.path if p != os.getcwd() and p != '.']
-            
-        # Fix for weights_only=True in newer PyTorch versions (2.6+)
-        # We temporarily override torch.load to default weights_only=False to allow loading the model
-        original_load = torch.load
-        def safe_load(*args, **kwargs):
-            if 'weights_only' not in kwargs:
-                kwargs['weights_only'] = False
-            return original_load(*args, **kwargs)
-        torch.load = safe_load
+def get_detector():
+    """Initialize YOLOv8 detector"""
+    global detector
+    if detector is None:
+        model_path = os.path.join(os.getcwd(), config.MODEL_PATH)
+        detector = VehicleDetector(
+            model_path=model_path,
+            conf_thres=config.CONFIDENCE_THRESHOLD
+        )
+        print(f"✓ YOLOv8 detector loaded from {model_path}")
+    return detector
 
-        try:
-            # Load YOLOv5 model
-            # Check for local copy first to avoid GitHub API "Authorization" (403) errors
-            local_path = os.path.join(os.getcwd(), 'ai_model', 'yolov5')
-            model = None
-            if os.path.exists(local_path) and os.path.exists(os.path.join(local_path, 'hubconf.py')):
-                try:
-                    model = torch.hub.load(local_path, 'yolov5s', source='local', pretrained=True)
-                except Exception as e:
-                    print(f"Local model load failed: {e}. Falling back to GitHub.")
-            
-            if model is None:
-                # Fallback to GitHub, removed force_reload=True to prevent rate limiting
-                model = torch.hub.load('ultralytics/yolov5:v7.0', 'yolov5s', pretrained=True)
-            
-            # Filter classes: 0=person, 2=car, 3=motorcycle, 5=bus, 7=truck
-            model.classes = [0, 2, 3, 5, 7]
-        finally:
-            torch.load = original_load
-            sys.path = original_path
-            if local_utils:
-                sys.modules['utils'] = local_utils
-    return model
 
 # Import the more robust CentroidTracker
 from ai_model.tracker import CentroidTracker
 
 def generate_frames():
     camera = CameraHandler()
-    model = None
-    model_error = None
+    detector = None
+    detector_error = None
     try:
-        model = get_model()
+        detector = get_detector()
     except Exception as e:
-        model_error = str(e)
-        print(f"Warning: AI Model failed to load: {e}")
+        detector_error = str(e)
+        print(f"Warning: AI Detector failed to load: {e}")
 
     # Check if camera opened successfully
     if camera.use_placeholder:
@@ -199,14 +163,17 @@ def generate_frames():
     
     # Initialize Tracker
     # Use the more robust CentroidTracker for better performance and accuracy
-    tracker = CentroidTracker(max_disappeared=30)
+    # Initialize the centroid tracker with increased max_disappeared
+    # Higher value = tracker keeps vehicle IDs longer when temporarily not detected
+    # This prevents duplicate IDs for the same vehicle
+    tracker = CentroidTracker(max_disappeared=100)
     
-    # Dictionaries to store state per vehicle ID
     vehicle_timers = {}   # {id: start_time}
     movement_start_pos = {} # {id: (time, cx, cy)}
     is_stopped_map = {} # {id: bool}
     violated_ids = set()  # Set of IDs that have already triggered a violation
     vehicle_types = {}    # {id: vehicle_type}
+    # Removed all_detections - drawing vehicles directly on detection frames instead
     resolution_checked = False
     
     # FPS optimization parameters
@@ -243,82 +210,64 @@ def generate_frames():
         # Draw the Yellow Box Zone on every frame
         cv2.polylines(frame, [yellow_zone], isClosed=True, color=(0, 255, 255), thickness=2)
         
-        # --- FRAME SKIPPING OPTIMIZATION ---
         # Only run AI model every Nth frame to boost FPS
         # Tracking state carries over to skipped frames
-        if model and (frame_count % frame_skip) == 0:
+        if detector and (frame_count % frame_skip) == 0:
             # AI Detection (runs every frame_skip frames)
             detections_for_tracker = [] # List of [x, y, w, h, label]
 
-            # --- PERFORMANCE OPTIMIZATION: Crop frame to Zone of Interest ---
-            # Instead of processing the whole frame, we only run the AI model on the
-            # area containing the yellow box, significantly improving FPS.
-            pad = 20 # Add padding to catch vehicles entering the zone
-            h_frame, w_frame = frame.shape[:2]
-            crop_x1 = max(0, zone_x_min - pad)
-            crop_y1 = max(0, zone_y_min - pad)
-            crop_x2 = min(w_frame, zone_x_max + pad)
-            crop_y2 = min(h_frame, zone_y_max + pad)
+            # Run YOLOv8 detection on the FULL frame to detect all vehicles on screen
+            # No need to convert BGR to RGB - ultralytics handles this internally
+            detections_raw = detector.detect(frame)
             
-            zone_crop = frame[crop_y1:crop_y2, crop_x1:crop_x2]
-
-            # Convert BGR (OpenCV) to RGB (YOLOv5) and run detection on the smaller crop
-            img_rgb = cv2.cvtColor(zone_crop, cv2.COLOR_BGR2RGB)
-            results = model(img_rgb)
-
-            # 1. Collect Detections
-            detections = results.xyxy[0].cpu().numpy()
+            # YOLOv8 class names (COCO dataset)
+            class_names = {
+                0: 'person', 2: 'car', 3: 'motorcycle',
+                5: 'bus', 7: 'truck'
+            }
             
-            # --- DEDUPLICATION: Remove duplicate/overlapping detections ---
-            # Keep only highest confidence detection when multiple detections overlap
-            detections = deduplicate_detections(
-                detections, 
-                iou_threshold=0.4,      # Remove if 40%+ overlap
-                conf_threshold=0.5      # Minimum confidence 50%
-            )
-            
-            bbox_to_label = {} # Helper to re-associate labels after tracking
+            # Convert class IDs to class names and track detections
+            bbox_to_label = {}
             person_count = 0
             vehicle_count = 0
-            current_persons = []  # Store person bboxes and centroids for this frame
+            current_persons = []  # Store person detections for proximity checks
             
-            for *xyxy, conf, cls in detections:
-                label = model.names[int(cls)]
-                # The model returns coordinates relative to the `zone_crop`.
-                # We must translate them back to the full frame's coordinate system
-                # by adding the crop's top-left offset (crop_x1, crop_y1).
-                x1_crop, y1_crop, x2_crop, y2_crop = map(int, xyxy)
-                x1 = x1_crop + crop_x1
-                y1 = y1_crop + crop_y1
-                x2 = x2_crop + crop_x1
-                y2 = y2_crop + crop_y1
-                w, h = x2 - x1, y2 - y1
+            for detection in detections_raw:
+                cls_id = detection['class']
+                conf = detection['confidence']
                 
-                # Calculate centroid for zone check
-                obj_cx = (x1 + x2) / 2
-                obj_cy = (y1 + y2) / 2
+                # Skip if not a vehicle or person class
+                if cls_id not in class_names:
+                    continue
+                    
+                label = class_names[cls_id]
+                x1, y1, x2, y2 = detection['bbox']
+                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                 
-                # --- ZONE FILTER: Only process detections INSIDE the yellow box ---
-                is_in_zone = cv2.pointPolygonTest(yellow_zone, (int(obj_cx), int(obj_cy)), False) >= 0
-                if not is_in_zone:
-                    continue  # Skip this detection, it's outside the zone
+                # Calculate centroid for zone checking
+                obj_cx = int((x1 + x2) / 2)
+                obj_cy = int((y1 + y2) / 2)
+                is_in_zone = cv2.pointPolygonTest(yellow_zone, (obj_cx, obj_cy), False) >= 0
                 
                 if label == 'person':
                     person_count += 1
-                    # Calculate person centroid
-                    person_cx = (x1 + x2) / 2
-                    person_cy = (y1 + y2) / 2
-                    current_persons.append((x1, y1, x2, y2, person_cx, person_cy))
-                    
-                    # Draw people immediately (no tracking needed for violation)
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 1)
-                    cv2.putText(frame, f"{label}", (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
+                    current_persons.append((x1, y1, x2, y2, obj_cx, obj_cy))
+                    # Store person for later proximity check with vehicles
+                    # Will draw if within 1 meter of a multicab (loading/unloading)
                 elif label in ['car', 'truck', 'bus', 'motorcycle']:
                     vehicle_count += 1
-                    # The CentroidTracker expects (startX, startY, endX, endY)
-                    rect = (x1, y1, x2, y2)
-                    detections_for_tracker.append(rect)
-                    bbox_to_label[rect] = label
+                    
+                    
+                    # Only track vehicles that are IN the zone (for violation detection)
+                    if is_in_zone:
+                        rect = (x1, y1, x2, y2)
+                        detections_for_tracker.append(rect)
+                        bbox_to_label[rect] = label
+                        # Vehicles inside zone are drawn by tracker below
+                    else:
+                        # Draw vehicles OUTSIDE zone directly (gray outline)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (128, 128, 128), 1)
+                        cv2.putText(frame, f"{label}", (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (128, 128, 128), 1)
 
             # 2. Update Tracker
             tracked_objects_map = tracker.update(detections_for_tracker)
@@ -336,6 +285,9 @@ def generate_frames():
             w, h = x2 - x1, y2 - y1
             # Re-associate the label using the bounding box
             label = bbox_to_label.get(tuple(bbox), 'vehicle') if (frame_count % frame_skip) == 0 else vehicle_types.get(obj_id, 'vehicle')
+            
+            # Override label to 'multicab' for vehicles in yellow box zone
+            label = 'multicab'
 
             # Calculate center point and explicitly cast to standard Python integers.
             # This prevents a cv2.error caused by passing numpy integer types to OpenCV functions.
@@ -364,22 +316,28 @@ def generate_frames():
             
             is_stopped = is_stopped_map.get(obj_id, False)
 
-            # --- Check for nearby persons (loading/unloading) ---
+            # --- CHECK FOR PEOPLE IN VEHICLE (Violation Detection) ---
+            # Loop over each person detected
             person_nearby = False
             person_inside = False
             if current_persons:
                 for px1, py1, px2, py2, pcx, pcy in current_persons:
-                    # Check if person is near this vehicle
+                    # Check proximity to this vehicle
                     vehicle_bbox = (x1, y1, x2, y2)
                     
                     # Check if person is inside vehicle bbox (got in)
-                    if is_person_inside_bbox((pcx, pcy), vehicle_bbox):
+                    if x1 <= pcx <= x2 and y1 <= pcy <= y2:
                         person_inside = True
-                        persons_in_vehicle[obj_id] = True
-                        break  # Found person inside
+                    
                     # Check if person is near vehicle (loading/unloading - 100px ≈ 1 meter)
                     elif is_person_near_vehicle((pcx, pcy), vehicle_bbox, distance_threshold=100):
                         person_nearby = True
+                        # Don't draw on person - will show on vehicle instead
+            
+            # Display LOADING/UNLOADING status on vehicle if person nearby
+            if person_nearby or person_inside:
+                status_text = "LOADING/UNLOADING"
+                cv2.putText(frame, status_text, (x1, y1 - 65), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
             
             # Check if person was previously inside but is now gone (person got out)
             person_got_out = False
@@ -478,26 +436,13 @@ def generate_frames():
                                     notes=f"Object ID: {obj_id}, Stopped for {elapsed:.1f}s"
                                 )
                             except TypeError as e:
-                                # Fallback for old signature
+                                # Fallback for old signature - use simpler parameters
                                 print(f"Database method signature mismatch: {e}")
                                 try:
                                     db.insert_violation(vehicle_type, db_timestamp, db_image_path, image_blob)
+                                    print(f"✅ Violation saved to local database (fallback): {detection_id}")
                                 except Exception as e2:
                                     print(f"Insert violation failed: {e2}")
-                        
-                        # --- SYNC TO NODE.JS BACKEND (Fallback Logic) ---
-                        try:
-                            # Attempt to send data to the Node.js/MongoDB backend
-                            # If this fails, the data is already saved in SQLite (above), so no data loss.
-                            node_api_url = "http://localhost:5001/api/violations"
-                            payload = {
-                                "timestamp": db_timestamp,
-                                "vehicle_type": vehicle_type,
-                                "image_path": db_image_path
-                            }
-                            requests.post(node_api_url, json=payload, timeout=1)
-                        except Exception as sync_error:
-                            print(f"Warning: Could not sync to Node.js Backend ({sync_error}). Data saved locally only.")
 
                     except Exception as e:
                         print(f"Database error: {e}")
@@ -560,12 +505,13 @@ def generate_frames():
             if obj_id not in current_frame_ids:
                 violated_ids.remove(obj_id)
         
+        
         # Display counts on screen
         cv2.putText(frame, f"People: {person_count} Vehicles: {vehicle_count}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
         
-        if model_error:
-            # Draw error message on frame if model failed
-            cv2.putText(frame, "AI Error: " + model_error, (10, 30), 
+        if detector_error:
+            # Draw error message on frame if detector failed
+            cv2.putText(frame, "AI Error: " + detector_error, (10, 30), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         
         # Display FPS on frame
@@ -583,61 +529,6 @@ def generate_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-def deduplicate_detections(detections, iou_threshold=0.5, conf_threshold=0.5):
-    """
-    Remove duplicate/overlapping detections keeping only highest confidence ones.
-    
-    Args:
-        detections: Array of detections from YOLO (xyxy format)
-        iou_threshold: Intersection over Union threshold for considering detections duplicate (0.5 = 50% overlap)
-        conf_threshold: Minimum confidence threshold
-        
-    Returns:
-        Filtered detections array
-    """
-    if len(detections) == 0:
-        return detections
-    
-    # Filter by confidence threshold first
-    detections = detections[detections[:, 4] >= conf_threshold]
-    
-    if len(detections) == 0:
-        return detections
-    
-    # Sort by confidence (descending)
-    detections = detections[np.argsort(-detections[:, 4])]
-    
-    keep = []
-    for i, det in enumerate(detections):
-        x1, y1, x2, y2, conf, cls = det
-        
-        # Check against already kept detections
-        is_duplicate = False
-        for kept_det in keep:
-            kx1, ky1, kx2, ky2 = kept_det[:4]
-            
-            # Calculate Intersection over Union (IoU)
-            inter_x1 = max(x1, kx1)
-            inter_y1 = max(y1, ky1)
-            inter_x2 = min(x2, kx2)
-            inter_y2 = min(y2, ky2)
-            
-            if inter_x2 > inter_x1 and inter_y2 > inter_y1:
-                inter_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
-                box_area = (x2 - x1) * (y2 - y1)
-                kept_area = (kx2 - kx1) * (ky2 - ky1)
-                union_area = box_area + kept_area - inter_area
-                iou = inter_area / union_area if union_area > 0 else 0
-                
-                # If IoU is high, it's likely the same object
-                if iou > iou_threshold:
-                    is_duplicate = True
-                    break
-        
-        if not is_duplicate:
-            keep.append(det)
-    
-    return np.array(keep) if keep else detections[:0]  # Return empty array with correct shape if no detections
 
 @dashboard_bp.route('/video_feed')
 def video_feed():

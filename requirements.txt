@@ -1,14 +1,22 @@
+# Web Framework
 Flask==2.3.3
-opencv-python==4.8.0.76
+
+# Computer Vision & AI
+opencv-python==4.10.0.84
+torch>=2.0.0
+ultralytics
+
+# Data Processing & Scientific Computing
 numpy
-Pillow==10.0.0
-matplotlib
+scipy
 pandas
-requests
+matplotlib
 seaborn
+
+# Utilities
+requests
+Pillow==10.0.0
+PyYAML
+tqdm
 psutil
 ipython
-tqdm
-PyYAML
-scipy
-ultralytics

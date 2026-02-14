@@ -3,11 +3,12 @@ import numpy as np
 from scipy.spatial import distance as dist
 
 class CentroidTracker:
-    def __init__(self, max_disappeared=50):
+    def __init__(self, max_disappeared=50, max_distance=150):
         self.next_object_id = 0
         self.objects = {}  # Stores {objectID: (centroid, bbox)}
         self.disappeared = {}
         self.max_disappeared = max_disappeared
+        self.max_distance = max_distance  # Maximum distance for matching (pixels)
 
     def register(self, centroid, bbox):
         self.objects[self.next_object_id] = (centroid, bbox)
@@ -51,6 +52,12 @@ class CentroidTracker:
             for (row, col) in zip(rows, cols):
                 if row in used_rows or col in used_cols:
                     continue
+                
+                # Check if the distance is within acceptable threshold
+                # This prevents assigning new IDs when vehicle moves too much
+                if D[row, col] > self.max_distance:
+                    continue
+                
                 object_id = object_ids[row]
                 # Update with the new centroid and bounding box
                 self.objects[object_id] = (input_centroids[col], rects[col])
